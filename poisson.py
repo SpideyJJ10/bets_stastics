@@ -1,47 +1,52 @@
-import math
+import numpy as np
+from scipy.stats import poisson
 
-media_gol = float(input('Promedio de Goles: '))
-
-xg = int(input('Goles esperado: '))
-
-
-def distribution_poisson(media, xg):
-    e = 2.78**-media
+def main():
+    teamA = input("Equipo elegido: ").strip()
+    teamB = input("Equipo rival: ").strip()
     
-    #Para calcular la posibilidad de +0.5 goles
-    if(xg == 1):
-        probabilidad_de_k = ((media**(xg-1) * e)/ math.factorial(xg-1))
-        
-        probalidad_de_gol = 1 - probabilidad_de_k;
-        
-        probalidad_de_gol = round(probalidad_de_gol, 2)
-        
-        print(f'Probabilidad de que marque {xg} o más goles  es de: {probalidad_de_gol}%')
-        
-    #Para calcular la posibilidad de +1.5 goles
-    elif(xg == 2):
-        probabilidad_de_k1 = ((media**(0) * e)/ math.factorial(0))
-        
-        probabilidad_de_k2 = ((media**(xg-1) * e)/ math.factorial(xg-1))
-        
-        probalidad_de_gol = 1 - probabilidad_de_k1 - probabilidad_de_k2
-        
-        probalidad_de_gol = round(probalidad_de_gol, 2)
-        
-        print(f'Probabilidad de que marque {xg} o más goles  es de: {probalidad_de_gol}%')
+    # Obtener datos de ataque y defensa, localía y forma
+    teamA_attack, teamA_defense, home_advantage_A, form_A, injuries_A = get_team_data(teamA, local=True)
+    teamB_attack, teamB_defense, home_advantage_B, form_B, injuries_B = get_team_data(teamB, local=False)
     
-    #Para calcular la posibilidad de +2.5 goles
-    elif(xg == 3):
-        probabilidad_de_k1 = ((media**(0) * e)/ math.factorial(0))
-        
-        probabilidad_de_k2 = ((media**(xg-2) * e)/ math.factorial(xg-2))
-        
-        probabilidad_de_k3 = ((media**(xg-1) * e)/ math.factorial(xg-1))
-        
-        probalidad_de_gol = 1 - probabilidad_de_k1 - probabilidad_de_k2 - probabilidad_de_k3
-        
-        probalidad_de_gol = round(probalidad_de_gol, 2)
-        
-        print(f'Probabilidad de que marque {xg} o más goles  es de: {probalidad_de_gol}%')
-        
-distribution_poisson(media_gol, xg)
+    # Ajustar goles esperados por localía, forma y lesiones
+    expected_goals_A = (teamA_attack * teamB_defense) * home_advantage_A * form_A * injuries_A
+    expected_goals_B = (teamB_attack * teamA_defense) * home_advantage_B * form_B * injuries_B
+
+    print(f"\n🔹 Goles esperados: {teamA} ({expected_goals_A:.2f}) vs {teamB} ({expected_goals_B:.2f})")
+    
+    # Simular posibles marcadores con los factores extra
+    simulate_match(expected_goals_A, expected_goals_B, teamA, teamB)
+
+def get_team_data(team, local):
+    """Obtiene datos de ataque, defensa y factores extra."""
+    avg_goals_scored = float(input(f"⚽ Promedio de goles anotados por {team}: "))
+    avg_goals_conceded = float(input(f"🛑 Promedio de goles concedidos por {team}: "))
+    
+    # Factor Localía (1.15 si es local, 0.85 si es visitante)
+    home_advantage = 1.15 if local else 0.85
+    
+    # Factor Forma (Basado en los últimos 5 partidos)
+    last_5_matches = input(f"📊 Últimos 5 partidos de {team} (ejemplo: WWLDL): ").upper()
+    form_factor = calculate_form_factor(last_5_matches)
+
+    # Factor de Lesiones/Sanciones (1.0 si está completo, menor si tiene bajas)
+    injuries = int(input(f"🚑 Número de jugadores clave ausentes en {team}: "))
+    injuries_factor = 1.0 - (injuries * 0.05)  # Cada baja reduce un 5% el rendimiento
+
+    return avg_goals_scored, avg_goals_conceded, home_advantage, form_factor, injuries_factor
+
+def calculate_form_factor(last_5):
+    """Convierte los últimos 5 partidos en un factor numérico."""
+    points = {'W': 1.1, 'D': 1.0, 'L': 0.9}  # Win = 1.1, Draw = 1.0, Loss = 0.9
+    return np.mean([points.get(match, 1.0) for match in last_5])
+
+def simulate_match(lambda_A, lambda_B, teamA, teamB):
+    """Simula la probabilidad de cada marcador basado en Poisson con factores adicionales."""
+    print("\n📊 Probabilidades de marcadores más probables:")
+    for gA in range(4):
+        for gB in range(4):
+            prob = poisson.pmf(gA, lambda_A) * poisson.pmf(gB, lambda_B)
+            print(f"{teamA} {gA} - {gB} {teamB}: {prob*100:.2f}%")
+
+main()
